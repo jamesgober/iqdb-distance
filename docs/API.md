@@ -1,13 +1,14 @@
 # iqdb-distance &mdash; API Reference
 
 > Complete reference for **every** public item in `iqdb-distance` as of
-> **v0.3.0**: what it is, its parameters and return shape, the traits it
+> **v0.4.0**: what it is, its parameters and return shape, the traits it
 > implements, and worked examples for each use case.
 >
-> **Status: pre-1.0.** The surface is designed across the 0.x series and frozen
-> at `1.0.0`. The math surface (the five metrics, the `Distance` trait, the
-> runtime dispatchers) is stable in shape; the testing-only accessors are
-> explicitly *not* part of the stable API.
+> **Status: feature-frozen (pre-1.0).** As of 0.4.0 the public surface is
+> complete and frozen for the 1.x series — additive, non-breaking changes only
+> until 2.0 (the frozen surface is recorded in `dev/ROADMAP.md`). The
+> testing-only accessors (`force_scalar`, `which_kernel`) are explicitly *not*
+> part of the stable API.
 
 ## Table of Contents
 
@@ -20,6 +21,9 @@
   - [`compute` (runtime dispatch)](#compute-runtime-dispatch)
   - [`compute_batch` (runtime dispatch)](#compute_batch-runtime-dispatch)
 - [The metrics](#the-metrics)
+- [Normalized fast path](#normalized-fast-path)
+  - [`cosine_normalized`](#cosine_normalized)
+  - [`normalize`](#normalize)
 - [CPU features &amp; dispatch](#cpu-features--dispatch)
   - [`CpuFeatures`](#cpufeatures)
   - [`detect_features`](#detect_features)
@@ -252,6 +256,70 @@ assert!((Manhattan::compute(&[0.0, 0.0], &[3.0, 4.0]).unwrap() - 7.0).abs() < 1e
 
 // Hamming: one bit-distinct position.
 assert!((Hamming::compute(&[0.0, 1.0, 0.0], &[0.0, 0.0, 0.0]).unwrap() - 1.0).abs() < 1e-6);
+```
+
+---
+
+## Normalized fast path
+
+When embeddings are L2-normalized at ingest — a common preprocessing step — cosine distance collapses to `1 − (a · b)`, so the per-call norm, square root, and division the general [`Cosine`](#the-metrics) kernel performs are unnecessary. These two functions take that path; both reuse the same runtime-dispatched SIMD dot kernel as the rest of the crate.
+
+### `cosine_normalized`
+
+```rust
+pub fn cosine_normalized(a: &[f32], b: &[f32]) -> Result<f32>;
+```
+
+Cosine distance for two **already unit-length** vectors: `1 − (a · b)`.
+
+- **`a`, `b`** — the two vectors, **assumed unit length**. Same length contract as [`Distance::compute`](#distancecompute).
+- **Returns** `Ok(f32)`. For genuinely unit-length inputs the result equals [`Cosine::compute`](#the-metrics) within floating-point tolerance and lies in `[0, 2]`.
+- **Errors** — [`InvalidVector`](#errors) for an empty slice, [`DimensionMismatch`](#errors) for unequal lengths.
+
+> **Contract.** The caller guarantees `a` and `b` are unit length (use [`normalize`](#normalize)). If they are not, the return value is still `1 − (a · b)` but is no longer a cosine distance and may fall outside `[0, 2]` — there is no internal normalization to rescue it. When magnitudes are unknown, use [`Cosine`](#the-metrics), which normalizes internally.
+
+```rust
+use iqdb_distance::cosine_normalized;
+
+// Identical unit vectors → 0; perpendicular → 1.
+let a = [1.0_f32, 0.0, 0.0];
+assert!(cosine_normalized(&a, &a).expect("valid pair").abs() < 1e-6);
+assert!((cosine_normalized(&a, &[0.0, 1.0, 0.0]).expect("valid pair") - 1.0).abs() < 1e-6);
+```
+
+Once inputs are normalized, it matches the general kernel:
+
+```rust
+use iqdb_distance::{Cosine, Distance, cosine_normalized, normalize};
+
+let a = normalize(&[1.0_f32, 2.0, 3.0]).expect("non-zero");
+let b = normalize(&[-2.0_f32, 0.5, 4.0]).expect("non-zero");
+let fast = cosine_normalized(&a, &b).expect("valid pair");
+let full = Cosine::compute(&a, &b).expect("valid pair");
+assert!((fast - full).abs() < 1e-6);
+```
+
+### `normalize`
+
+```rust
+pub fn normalize(v: &[f32]) -> Result<Vec<f32>>;
+```
+
+Return the L2-normalized (unit-length) copy of `v`: `v / ‖v‖`. Use it once at ingest to produce the unit vectors [`cosine_normalized`](#cosine_normalized) expects, then store the result. The squared norm is computed through the SIMD dot kernel (`‖v‖² = v · v`).
+
+- **`v`** — the vector to normalize.
+- **Returns** `Ok(Vec<f32>)` — a **new** vector (this is the crate's one allocating call, by necessity).
+- **Errors** — [`InvalidVector`](#errors) if `v` is empty, or if its magnitude is not a usable positive, finite value: a zero vector, a subnormal-magnitude vector, or one whose norm is non-finite (a `NaN`/`∞` component, or an overflowing sum of squares). A vector you cannot normalize is rejected rather than returned as `NaN`s.
+
+```rust
+use iqdb_distance::normalize;
+
+// 3-4-5 triangle → unit vector [0.6, 0.8].
+let unit = normalize(&[3.0_f32, 4.0]).expect("non-zero magnitude");
+assert!((unit[0] - 0.6).abs() < 1e-6 && (unit[1] - 0.8).abs() < 1e-6);
+
+// A zero-magnitude vector cannot be normalized.
+assert!(normalize(&[0.0_f32, 0.0, 0.0]).is_err());
 ```
 
 ---

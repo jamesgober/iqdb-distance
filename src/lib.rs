@@ -10,10 +10,15 @@
 //! [`compute_batch`] functions take the metric tag and route to the right
 //! implementation.
 //!
-//! Performance: every public path is allocation-free. SIMD kernels (AVX2 on
-//! x86_64, NEON on aarch64) are picked at runtime from [`detect_features`]
-//! and short-circuit to the scalar reference when the host lacks the
-//! feature or when `force_scalar` has been called.
+//! For pre-normalized embeddings, [`cosine_normalized`] is a fast path that
+//! skips the norm and division (`1 - a · b`), and [`normalize`] produces the
+//! unit vectors it expects.
+//!
+//! Performance: every distance call is allocation-free ([`normalize`], which
+//! returns a new vector, is the sole documented exception). SIMD kernels (AVX2
+//! on x86_64, NEON on aarch64) are picked at runtime from [`detect_features`]
+//! and short-circuit to the scalar reference when the host lacks the feature
+//! or when `force_scalar` has been called.
 //!
 //! ## Example
 //!
@@ -54,6 +59,7 @@
 mod dispatch;
 mod features;
 mod metrics;
+mod normalized;
 mod scalar;
 mod simd;
 mod traits;
@@ -64,6 +70,7 @@ pub use crate::features::{CpuFeatures, detect_features, forced_scalar};
 #[cfg(any(test, feature = "testing"))]
 pub use crate::features::{force_scalar, which_kernel};
 pub use crate::metrics::{Cosine, DotProduct, Euclidean, Hamming, Manhattan};
+pub use crate::normalized::{cosine_normalized, normalize};
 pub use crate::traits::Distance;
 
 /// The version of this crate, taken from `Cargo.toml` at compile time.

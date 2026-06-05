@@ -21,6 +21,34 @@
 
 ---
 
+## [0.4.0] - 2026-06-05
+
+Normalized fast path and **feature freeze**. The public surface is now complete
+and declared frozen — no new public items before 1.0. This release adds the
+pre-normalized cosine path for embeddings that are already unit length.
+
+### Added
+
+- `cosine_normalized(a, b) -> Result<f32>`: cosine distance for already
+  unit-length vectors, computed as `1 - (a · b)` through the same
+  runtime-dispatched SIMD dot kernel. It skips the per-call norm, square root,
+  and division of the general `Cosine` kernel; for unit inputs the result
+  matches `Cosine::compute` within tolerance and lies in `[0, 2]`. The
+  equivalence is property-tested against the full cosine kernel.
+- `normalize(v) -> Result<Vec<f32>>`: the L2-normalized (`v / ‖v‖`) copy of a
+  vector, for producing the unit inputs `cosine_normalized` expects. Rejects
+  empty, zero-magnitude, subnormal-magnitude, and non-finite-norm vectors with
+  `IqdbError::InvalidVector`. This is the crate's only allocating call, by
+  necessity (it returns a new vector).
+
+### Changed
+
+- **Public API declared frozen for 1.x.** The frozen surface is recorded in
+  `dev/ROADMAP.md`; additive, non-breaking changes remain allowed, anything else
+  waits for 2.0. No `todo!`/`unimplemented!` anywhere in shipping code.
+
+---
+
 ## [0.3.0] - 2026-06-05
 
 SIMD release. The scalar reference is joined by runtime-dispatched AVX2 (x86_64) and NEON (aarch64) kernels for all five metrics, with every SIMD path property-and-differentially tested to agree with its scalar twin within floating-point tolerance.
@@ -126,5 +154,6 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jamesgober/iqdb-distance/releases/tag/v0.3.0

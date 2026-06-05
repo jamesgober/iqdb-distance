@@ -42,10 +42,31 @@ MSRV and CI runners support it.
 
 ---
 
-## v0.4.0 -- batch ops + normalized variants + feature freeze
+## v0.4.0 -- batch ops + normalized variants + feature freeze (DONE)
 
 Exit criteria:
-- [ ] No `todo!`/`unimplemented!`. Feature freeze declared.
+- [x] No `todo!`/`unimplemented!`. Feature freeze declared.
+
+Batch ops (`compute_batch`, `Distance::compute_batch`) shipped in 0.2.0. The
+normalized fast path landed as two free functions, kept deliberately minimal
+per the "keep the API simple" mandate: `cosine_normalized` (`1 - a · b` over the
+SIMD dot kernel) and `normalize` (`v / ‖v‖`) — **not** a parallel metric type
+and **not** a new `DistanceMetric` variant (that enum lives in frozen
+`iqdb-types`).
+
+**Feature freeze — the public surface is now complete and frozen for 1.x.**
+Additive, non-breaking changes remain allowed; anything else waits for 2.0. The
+frozen surface:
+
+- Metric tags: `Cosine`, `DotProduct`, `Euclidean`, `Manhattan`, `Hamming`.
+- Trait: `Distance` (`compute`, `compute_batch`).
+- Runtime dispatch: `compute`, `compute_batch` over `DistanceMetric`
+  (`InvalidMetric` for unimplemented `#[non_exhaustive]` variants).
+- Normalized: `cosine_normalized`, `normalize`.
+- Feature detection: `CpuFeatures`, `detect_features`, `forced_scalar`.
+- Constant: `VERSION`.
+- Not part of the stable surface (gated on `feature = "testing"`):
+  `force_scalar`, `which_kernel`.
 
 ---
 

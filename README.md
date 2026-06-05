@@ -42,7 +42,8 @@
 - **SIMD + scalar** &mdash; AVX2 on x86_64, NEON on aarch64, with a readable scalar fallback
 - **Runtime dispatch** &mdash; detect CPU features once; route each call to the fastest available kernel
 - **Two entry points** &mdash; a type-level `Distance` trait when the metric is known at compile time, and `compute`/`compute_batch` over `DistanceMetric` when it is chosen at runtime
-- **Allocation-free** &mdash; every public path borrows; batch evaluation writes into a caller-owned buffer
+- **Normalized fast path** &mdash; `cosine_normalized` (and a `normalize` helper) skip the norm work for pre-normalized embeddings
+- **Allocation-free** &mdash; every distance call borrows; batch evaluation writes into a caller-owned buffer
 - **Never panics on bad input** &mdash; empty, mismatched, and non-finite inputs return a typed `IqdbError`
 - **Standalone** &mdash; usable by anyone doing vector similarity in Rust, iQDB or not
 
@@ -52,7 +53,7 @@
 
 ```toml
 [dependencies]
-iqdb-distance = "0.3"
+iqdb-distance = "0.4"
 ```
 
 <br>
@@ -105,6 +106,19 @@ compute_batch(DistanceMetric::Euclidean, &query, &candidates, &mut out)
 assert_eq!(out, [1.0, 2.0, 5.0]);
 ```
 
+When embeddings are already unit length, take the fast cosine path — it skips the norm, square root, and division:
+
+```rust
+use iqdb_distance::{cosine_normalized, normalize};
+
+// Normalize once at ingest, then compare with the fast path.
+let a = normalize(&[1.0_f32, 2.0, 3.0]).expect("non-zero magnitude");
+let b = normalize(&[-2.0_f32, 0.5, 4.0]).expect("non-zero magnitude");
+
+let d = cosine_normalized(&a, &b).expect("valid pair"); // 1 - dot(a, b)
+assert!((0.0..=2.0).contains(&d));
+```
+
 Inspect the kernel the host will use:
 
 ```rust
@@ -127,7 +141,7 @@ library never panics on hostile input.
 
 ## Status
 
-This is the <code>v0.3.0</code> SIMD release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels, each property-tested and differentially verified against the scalar twin. The remaining 0.x work &mdash; normalized fast-paths, fuzzing, and the API freeze &mdash; lands per the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>, with the full surface documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
+This is the <code>v0.4.0</code> feature-freeze release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels (each property-tested and differentially verified against the scalar twin), the `cosine_normalized` fast path for pre-normalized embeddings, and allocation-free batch evaluation. **The public surface is now frozen for 1.x** &mdash; additive changes only until 2.0 (the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>). The remaining 0.x work &mdash; equivalence fuzzing and the RC soak against real index consumers &mdash; lands per the ROADMAP, with the full surface documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>
