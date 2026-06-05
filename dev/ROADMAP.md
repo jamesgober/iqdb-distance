@@ -15,18 +15,30 @@ Compiles, CI green, structure correct, no domain logic.
 
 ---
 
-## v0.2.0 -- scalar reference metrics + the `Distance` trait (THE HARD PART, NOT DEFERRED)
+## v0.2.0 -- scalar reference metrics + the `Distance` trait (THE HARD PART, NOT DEFERRED) (DONE)
 
 Exit criteria:
-- [ ] Every public item has rustdoc + a runnable example.
-- [ ] Core invariants property-tested.
+- [x] Every public item has rustdoc + a runnable example.
+- [x] Core invariants property-tested.
+
+All five metrics shipped behind the `Distance` trait with always-compiled
+scalar reference paths, runtime `compute`/`compute_batch` dispatch, allocation-
+free batch evaluation, and typed-error validation. Cosine low-magnitude
+robustness (independent-sqrt denominator) landed and is pinned by test.
 
 ---
 
-## v0.3.0 -- SIMD (AVX2/AVX-512/NEON) + runtime dispatch
+## v0.3.0 -- SIMD (AVX2/NEON) + runtime dispatch (DONE)
 
 Exit criteria:
-- [ ] New surface tested and benchmarked where it is a hot path.
+- [x] New surface tested and benchmarked where it is a hot path.
+
+AVX2 (x86_64) and NEON (aarch64) kernels for every metric, runtime-dispatched
+via `detect_features`/`select_kernel`, differentially tested against the scalar
+reference over finite and adversarial corpora (with a "SIMD actually ran" gate),
+and benchmarked SIMD-vs-scalar per metric. **AVX-512 is deferred** (MSRV 1.87 +
+CI coverage gap) — recorded here per the anti-deferral rule; revisit when the
+MSRV and CI runners support it.
 
 ---
 

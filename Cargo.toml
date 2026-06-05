@@ -9,10 +9,10 @@
 #╚═══════════════════════════════╝
 [package]
 name    = "iqdb-distance"
-version = "0.1.0"
+version = "0.3.0"
 
 # Minimum Supported Rust Version (MSRV)
-rust-version = "1.85"
+rust-version = "1.87"
 edition = "2024"
 
 # License
@@ -46,7 +46,8 @@ documentation = "https://docs.rs/iqdb-distance"
 
 # Authors
 authors = [
-    "James Gober <me@jamesgober.com>"
+    "James Gober <me@jamesgober.com>",
+    "Matt Callahan <matthewcallahan01@icloud.com>"
 ]
 
 [package.metadata.docs.rs]
@@ -61,33 +62,38 @@ path = "src/lib.rs"
 # FEATURE FLAGS
 # #################################
 [features]
-default = ["std"]
-# Standard library.
-std = []
-# Serialization support.
-serde = ["dep:serde"]
+# Default build: scalar reference paths plus runtime-dispatched SIMD on
+# supported targets. No optional dependencies.
+default = []
+# Exposes `force_scalar` (the sticky global override that pins every dispatched
+# distance call onto the scalar reference path) and `which_kernel` (the kernel
+# the dispatcher would route to right now). Used by the differential SIMD
+# correctness test and the criterion benches to exercise the scalar path on a
+# host that would otherwise pick a SIMD kernel. A production build without this
+# feature cannot reach the override.
+testing = []
 
 
 # DEPENDENCIES
 # #################################
 [dependencies]
-serde = { version = "1", optional = true, default-features = false, features = ["derive", "alloc"] }
+# Shared public vocabulary: DistanceMetric, IqdbError, Result.
+iqdb-types = { path = "../iqdb-types", version = "1.0.0" }
 
 
 # DEV DEPENDENCIES
 # #################################
 [dev-dependencies]
+# Per-metric scalar-vs-SIMD micro-benches and headroom tracking.
 criterion = { version = "0.5", features = ["html_reports"] }
-proptest = "1"
-
-[target.'cfg(loom)'.dev-dependencies]
-loom = "0.7"
+# Property tests for the math invariants (symmetry, identity, bounds).
+proptest  = "1"
 
 
 # BENCHMARKS
 # #################################
 [[bench]]
-name    = "distance_bench"
+name    = "distance"
 harness = false
 
 

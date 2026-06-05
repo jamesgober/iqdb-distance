@@ -11,7 +11,7 @@
     <a href="https://crates.io/crates/iqdb-distance"><img alt="Downloads" src="https://img.shields.io/crates/d/iqdb-distance?color=%230099ff"></a>
     <a href="https://docs.rs/iqdb-distance"><img alt="docs.rs" src="https://img.shields.io/docsrs/iqdb-distance"></a>
     <a href="https://github.com/jamesgober/iqdb-distance/actions"><img alt="CI" src="https://github.com/jamesgober/iqdb-distance/actions/workflows/ci.yml/badge.svg"></a>
-    <a href="https://github.com/rust-lang/rfcs/blob/master/text/2495-min-rust-version.md"><img alt="MSRV" src="https://img.shields.io/badge/MSRV-1.85%2B-blue"></a>
+    <a href="https://github.com/rust-lang/rfcs/blob/master/text/2495-min-rust-version.md"><img alt="MSRV" src="https://img.shields.io/badge/MSRV-1.87%2B-blue"></a>
 </div>
 
 <br>
@@ -21,12 +21,12 @@
         <strong>iqdb-distance</strong> is the innermost loop of the database: every search computes thousands of distances, so this crate is optimized aggressively while keeping a readable scalar reference.
     </p>
     <p>
-        It provides every metric vector search needs, with SIMD implementations that are property-tested to match the scalar ground truth within floating-point tolerance.
+        It provides every metric vector search needs &mdash; cosine, dot product, Euclidean, Manhattan, and Hamming &mdash; with SIMD implementations that are property-tested to match the scalar ground truth within floating-point tolerance.
     </p>
     <br>
     <hr>
     <p>
-        <strong>MSRV is 1.85+</strong> (Rust 2024 edition). SIMD-accelerated. Scalar fallback. Property-tested equivalence.
+        <strong>MSRV is 1.87+</strong> (Rust 2024 edition). SIMD-accelerated. Scalar fallback. Property-tested equivalence.
     </p>
     <blockquote>
         <strong>Status: pre-1.0, in active development.</strong> The public API is being designed across the 0.x series and frozen at <code>1.0.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
@@ -39,11 +39,12 @@
 <h2>What it does</h2>
 
 - **Every metric** &mdash; cosine, dot product, Euclidean (L2), Manhattan (L1), Hamming
-- **SIMD + scalar** &mdash; AVX2/AVX-512 on x86_64, NEON on aarch64, with a readable scalar fallback
-- **Runtime dispatch** &mdash; detect CPU features once; force-scalar mode for testing
-- **Batch ops** &mdash; compute a query against many candidates with cache-friendly batching
+- **SIMD + scalar** &mdash; AVX2 on x86_64, NEON on aarch64, with a readable scalar fallback
+- **Runtime dispatch** &mdash; detect CPU features once; route each call to the fastest available kernel
+- **Two entry points** &mdash; a type-level `Distance` trait when the metric is known at compile time, and `compute`/`compute_batch` over `DistanceMetric` when it is chosen at runtime
+- **Allocation-free** &mdash; every public path borrows; batch evaluation writes into a caller-owned buffer
+- **Never panics on bad input** &mdash; empty, mismatched, and non-finite inputs return a typed `IqdbError`
 - **Standalone** &mdash; usable by anyone doing vector similarity in Rust, iQDB or not
-
 
 <br>
 
@@ -51,14 +52,82 @@
 
 ```toml
 [dependencies]
-iqdb-distance = "0.1"
+iqdb-distance = "0.3"
 ```
+
+<br>
+
+## Quick start
+
+Pick the metric at compile time through the `Distance` trait:
+
+```rust
+use iqdb_distance::{Cosine, Distance, Euclidean};
+
+let a = [1.0_f32, 0.0, 0.0];
+let b = [0.0_f32, 1.0, 0.0];
+
+// Cosine distance of perpendicular unit vectors is 1.0.
+let cos = Cosine::compute(&a, &b).expect("non-empty, same length");
+assert!((cos - 1.0).abs() < 1e-6);
+
+// Euclidean (L2): a 3-4-5 right triangle.
+let l2 = Euclidean::compute(&[0.0, 0.0, 0.0], &[3.0, 4.0, 0.0]).expect("valid pair");
+assert!((l2 - 5.0).abs() < 1e-6);
+```
+
+Or pick it at runtime with the `DistanceMetric` tag from `iqdb-types`:
+
+```rust
+use iqdb_distance::compute;
+use iqdb_types::DistanceMetric;
+
+let a = [1.0_f32, 2.0, 3.0];
+let b = [4.0_f32, -5.0, 6.0];
+
+// Dot-product similarity: 1*4 + 2*(-5) + 3*6 = 12.
+let s = compute(DistanceMetric::DotProduct, &a, &b).expect("valid pair");
+assert!((s - 12.0).abs() < 1e-6);
+```
+
+Score one query against many candidates into a caller-owned buffer (no allocation):
+
+```rust
+use iqdb_distance::compute_batch;
+use iqdb_types::DistanceMetric;
+
+let query = [0.0_f32, 0.0];
+let candidates: [&[f32]; 3] = [&[1.0, 0.0], &[0.0, 2.0], &[3.0, 4.0]];
+let mut out = [0.0_f32; 3];
+
+compute_batch(DistanceMetric::Euclidean, &query, &candidates, &mut out)
+    .expect("output length matches candidate count");
+assert_eq!(out, [1.0, 2.0, 5.0]);
+```
+
+Inspect the kernel the host will use:
+
+```rust
+let features = iqdb_distance::detect_features();
+// On an AVX2 x86_64 host `features.avx2` is true; on aarch64 `features.neon` is.
+let _ = (features.avx2, features.neon);
+```
+
+<br>
+
+## Errors
+
+Every fallible call returns `iqdb_types::Result`. Empty inputs surface as
+`IqdbError::InvalidVector`; length mismatches as
+`IqdbError::DimensionMismatch { expected, found }`; a batch whose output buffer
+does not match the candidate count returns `IqdbError::InvalidConfig`. The
+library never panics on hostile input.
 
 <br>
 
 ## Status
 
-This is the <code>v0.1.0</code> scaffold: structure, tooling, and quality gates are in place; the implementation lands across the 0.x series per the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a> and <a href="./docs/API.md"><code>docs/API.md</code></a>.
+This is the <code>v0.3.0</code> SIMD release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels, each property-tested and differentially verified against the scalar twin. The remaining 0.x work &mdash; normalized fast-paths, fuzzing, and the API freeze &mdash; lands per the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>, with the full surface documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>
@@ -67,17 +136,17 @@ This is the <code>v0.1.0</code> scaffold: structure, tooling, and quality gates 
 
 `iqdb-distance` sits just above the types crate. It powers:
 
-- `iqdb-types` &mdash; the `DistanceMetric` enum and vector types
+- `iqdb-types` &mdash; the `DistanceMetric` enum and vector types it operates on
 - `iqdb-quantize` &mdash; quantized distance reuses this SIMD infrastructure
 - `iqdb-flat` / `iqdb-hnsw` / `iqdb-ivf` &mdash; every index computes distances here
 
-It has no first-party deps beyond `iqdb-types`, so it is unblocked today.
+Its only first-party dependency is `iqdb-types`, so it is unblocked today.
 
 <br>
 
-## Contributing
+## Standards
 
-See <a href="./dev/DIRECTIVES.md"><code>dev/DIRECTIVES.md</code></a> for engineering standards and the definition of done. Before a PR: `cargo fmt --all`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo test --all-features` must be clean.
+Built to the iQDB Rust standard. See <a href="./REPS.md"><code>REPS.md</code></a> (Rust Efficiency &amp; Performance Standards) and <a href="./dev/DIRECTIVES.md"><code>dev/DIRECTIVES.md</code></a> for the engineering law and the definition of done. Before a PR: `cargo fmt --all`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo test --all-features` must be clean.
 
 <br>
 
