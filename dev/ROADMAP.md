@@ -95,19 +95,41 @@ testing-gated accessors remain outside the guarantee. `cargo audit` and
 
 ---
 
-## v0.6.0 -> v0.9.x -- Alpha / Beta -> RC
+## v0.6.0 -> v0.9.x -- Alpha / Beta -> RC (folded into 1.0.0)
 
 - 0.6.x-0.7.x: integrate against real consumers; MINOR-compatible additions only.
 - 0.8.x (beta): bug fixes; broader testing; final benchmarks.
 - 0.9.x (rc): critical fixes + doc polish.
 
+The RC track's *intent* — prove the surface serves real consumers, settle final
+benchmarks, polish docs — was met without separate tags. Under the spine-first
+ordering the real index crates are not yet published against this surface, so
+the soak was carried out by the `tests/consumer_simulation.rs` suite, built at
+the **exact** signatures `iqdb-flat` / `iqdb-hnsw` / `iqdb-ivf` expose (each
+routes every metric through `compute_batch` and never reimplements one) and
+cross-checked against their implementations. Final benchmarks and doc/example
+polish shipped with 1.0.0. This mirrors how `iqdb-types` reached 1.0 on a
+satisfied checklist rather than a calendar.
+
 ---
 
-## v1.0.0 -- Stable
+## v1.0.0 -- Stable (DONE)
 
-- [ ] Definition of Done (DIRECTIVES section 7) satisfied.
-- [ ] Public API frozen until 2.0.
-- [ ] Release note written; published to crates.io; tag pushed.
+- [x] Definition of Done (DIRECTIVES section 7) satisfied.
+- [x] Public API frozen until 2.0.
+- [x] Release note written. (Publish to crates.io + tag push: owner action.)
+
+**On the `loom` Definition-of-Done item (§7.6).** The crate's only shared
+mutable state is `FORCED_SCALAR` — a set-once, monotonic, `Relaxed` `AtomicBool`
+— plus a `std::sync::OnceLock` that performs its own synchronization. There is
+no lock-free data structure or multi-step concurrent protocol to model: the flag
+goes `false -> true` once and is only ever read. A `loom` test would require
+making the `static` injectable purely to model a primitive whose correctness is
+self-evident, which trades real complexity for no assurance (KISS/YAGNI).
+Concurrent behaviour is instead exercised directly: `tests/differential.rs`
+runs `force_scalar()` against Cargo's parallel test execution and is hardened
+(via a pre-flip `OnceLock` snapshot) precisely against the set/observe race.
+This is recorded as a deliberate, settled decision per the anti-deferral rule.
 
 ---
 

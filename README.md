@@ -29,7 +29,7 @@
         <strong>MSRV is 1.87+</strong> (Rust 2024 edition). SIMD-accelerated. Scalar fallback. Property-tested equivalence.
     </p>
     <blockquote>
-        <strong>Status: pre-1.0, in active development.</strong> The public API is being designed across the 0.x series and frozen at <code>1.0.0</code>. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
+        <strong>Status: stable (1.0).</strong> The public API is committed under SemVer for the 1.x series &mdash; no breaking changes until 2.0. See <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
     </blockquote>
 </div>
 
@@ -53,7 +53,7 @@
 
 ```toml
 [dependencies]
-iqdb-distance = "0.5"
+iqdb-distance = "1.0"
 ```
 
 <br>
@@ -141,7 +141,7 @@ library never panics on hostile input.
 
 ## Status
 
-This is the <code>v0.5.0</code> API-freeze release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels (each property-tested, differentially verified, **and fuzzed** against the scalar twin), the `cosine_normalized` fast path for pre-normalized embeddings, and allocation-free batch evaluation. **The public API is frozen for 1.x** &mdash; additive changes only until 2.0 (the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>). The remaining 0.x work is the RC soak against real index consumers, per the ROADMAP; the full surface is documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
+<code>v1.0.0</code> &mdash; **stable.** All five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels, each property-tested, differentially verified, **and fuzzed** against the scalar twin; the `cosine_normalized` fast path for pre-normalized embeddings; and allocation-free batch evaluation. The public API is committed under SemVer for the 1.x series (no breaking changes until 2.0; the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>), benchmarked (6.8&ndash;10.3&times; SIMD speedups on AVX2 at 768-dim), and verified on Windows + Linux across stable and the 1.87 MSRV. The full surface is documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>

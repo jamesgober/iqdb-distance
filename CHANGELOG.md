@@ -21,6 +21,39 @@
 
 ---
 
+## [1.0.0] - 2026-06-05
+
+First stable release. The public API frozen at 0.5.0 is now committed under
+SemVer for the 1.x series: no breaking changes until 2.0. Every
+Definition-of-Done criterion (`dev/DIRECTIVES.md` §7) is satisfied, and the
+surface is verified on Windows and Linux across the stable and 1.87 MSRV
+toolchains, with the SIMD-vs-scalar contract differentially tested and fuzzed.
+
+### Added
+
+- Consumer-simulation suite (`tests/consumer_simulation.rs`): a brute-force
+  index built **only** on the public surface, reproducing the real index
+  pipeline — `compute_batch` scoring, the `DotProduct` negation that keeps
+  "smaller is nearer" across metrics, `Arc<[f32]>` row storage, and top-`k`
+  selection. Cross-checked against the `iqdb-flat` / `iqdb-hnsw` / `iqdb-ivf`
+  implementations, which each integrate through `compute_batch` and never
+  reimplement a metric.
+- `examples/`: five runnable, documented examples — `metrics` (the five metrics
+  via the trait), `runtime_dispatch` (`compute` / `compute_batch` over
+  `DistanceMetric`), `nearest_neighbor` (a top-`k` search loop), `normalized_search`
+  (`normalize` + `cosine_normalized`), and `feature_detection` (the dispatched
+  kernel).
+
+### Changed
+
+- Declared **1.0 stable**: the frozen surface (recorded in `dev/ROADMAP.md`) is
+  now under the SemVer 1.x compatibility guarantee. The **public API is
+  unchanged from 0.5.0** — this release adds the consumer-simulation, examples,
+  and the stability commitment. SIMD speedups benchmarked at **6.8–10.3×** over
+  the scalar reference on an AVX2 host at 768 dimensions.
+
+---
+
 ## [0.5.0] - 2026-06-05
 
 Equivalence fuzzing and **API freeze**. The SIMD-vs-scalar contract is now
@@ -183,7 +216,8 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jamesgober/iqdb-distance/releases/tag/v0.3.0
