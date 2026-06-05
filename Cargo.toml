@@ -78,7 +78,7 @@ testing = []
 # #################################
 [dependencies]
 # Shared public vocabulary: DistanceMetric, IqdbError, Result.
-iqdb-types = { path = "../iqdb-types", version = "1.0.0" }
+iqdb-types = "1.0.0"
 
 
 # DEV DEPENDENCIES
