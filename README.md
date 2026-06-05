@@ -53,7 +53,7 @@
 
 ```toml
 [dependencies]
-iqdb-distance = "0.4"
+iqdb-distance = "0.5"
 ```
 
 <br>
@@ -141,7 +141,7 @@ library never panics on hostile input.
 
 ## Status
 
-This is the <code>v0.4.0</code> feature-freeze release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels (each property-tested and differentially verified against the scalar twin), the `cosine_normalized` fast path for pre-normalized embeddings, and allocation-free batch evaluation. **The public surface is now frozen for 1.x** &mdash; additive changes only until 2.0 (the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>). The remaining 0.x work &mdash; equivalence fuzzing and the RC soak against real index consumers &mdash; lands per the ROADMAP, with the full surface documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
+This is the <code>v0.5.0</code> API-freeze release: all five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels (each property-tested, differentially verified, **and fuzzed** against the scalar twin), the `cosine_normalized` fast path for pre-normalized embeddings, and allocation-free batch evaluation. **The public API is frozen for 1.x** &mdash; additive changes only until 2.0 (the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>). The remaining 0.x work is the RC soak against real index consumers, per the ROADMAP; the full surface is documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>

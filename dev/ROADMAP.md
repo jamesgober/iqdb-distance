@@ -70,10 +70,28 @@ frozen surface:
 
 ---
 
-## v0.5.0 -- SIMD-vs-scalar equivalence fuzzing + API freeze
+## v0.5.0 -- SIMD-vs-scalar equivalence fuzzing + API freeze (DONE)
 
 Exit criteria:
-- [ ] Public API frozen (recorded here). `cargo audit` + `cargo deny` clean.
+- [x] Public API frozen (recorded here). `cargo audit` + `cargo deny` clean.
+
+Equivalence fuzzing landed as a standalone `fuzz/` crate (cargo-fuzz, nightly):
+- `equivalence` — asserts the dispatched (SIMD) kernel agrees with the scalar
+  reference (`compute_scalar`) over bounded finite inputs across all metrics.
+  The fuzzed counterpart to the fixed-corpus `tests/differential.rs`.
+- `robustness` — asserts `compute` never panics on arbitrary (incl. non-finite,
+  length-mismatched) input.
+
+Both are built and smoke-run in CI (the `fuzz` job). Local soak: 13.6M+
+executions on `equivalence` and 10.3M+ on `robustness` with zero findings. A
+testing-only `compute_scalar` accessor was added to give the fuzzer a per-call
+scalar oracle (gated on `feature = "testing"`, **not** part of the stable
+surface — same status as `force_scalar` / `which_kernel`).
+
+**API freeze.** The stable public surface recorded under v0.4.0 is locked for
+the 1.x series. Only additive, non-breaking changes land before 2.0; the
+testing-gated accessors remain outside the guarantee. `cargo audit` and
+`cargo deny check` are clean.
 
 ---
 

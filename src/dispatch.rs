@@ -86,3 +86,43 @@ pub fn compute_batch(
         _ => Err(IqdbError::InvalidMetric),
     }
 }
+
+/// Compute `metric` between `a` and `b` on the **scalar reference path**,
+/// bypassing runtime dispatch — a per-call scalar oracle.
+///
+/// Unlike [`crate::force_scalar`], which is a sticky, process-wide override,
+/// this computes scalar for a single call without touching global state, so a
+/// caller can obtain SIMD and scalar results for the *same* input in the same
+/// process. The equivalence fuzz target uses it to assert
+/// `compute(metric, a, b) ≈ compute_scalar(metric, a, b)` per input.
+///
+/// Available only under `cfg(any(test, feature = "testing"))`. **Not part of
+/// the stable public surface** — it exists for differential and fuzz testing
+/// and may change without a major bump.
+///
+/// # Examples
+///
+/// ```
+/// # #[cfg(feature = "testing")]
+/// # {
+/// use iqdb_distance::compute_scalar;
+/// use iqdb_types::DistanceMetric;
+///
+/// let d = compute_scalar(DistanceMetric::Euclidean, &[0.0, 0.0], &[3.0, 4.0])
+///     .expect("valid pair");
+/// assert!((d - 5.0).abs() < 1e-6);
+/// # }
+/// ```
+#[cfg(any(test, feature = "testing"))]
+pub fn compute_scalar(metric: DistanceMetric, a: &[f32], b: &[f32]) -> Result<f32> {
+    crate::validate::pair(a, b)?;
+    Ok(match metric {
+        DistanceMetric::Cosine => crate::scalar::cosine::compute(a, b),
+        DistanceMetric::DotProduct => crate::scalar::dot::compute(a, b),
+        DistanceMetric::Euclidean => crate::scalar::euclidean::compute(a, b),
+        DistanceMetric::Manhattan => crate::scalar::manhattan::compute(a, b),
+        DistanceMetric::Hamming => crate::scalar::hamming::compute(a, b),
+        // `DistanceMetric` is `#[non_exhaustive]`; mirror `compute`.
+        _ => return Err(IqdbError::InvalidMetric),
+    })
+}

@@ -1,14 +1,13 @@
 # iqdb-distance &mdash; API Reference
 
 > Complete reference for **every** public item in `iqdb-distance` as of
-> **v0.4.0**: what it is, its parameters and return shape, the traits it
+> **v0.5.0**: what it is, its parameters and return shape, the traits it
 > implements, and worked examples for each use case.
 >
-> **Status: feature-frozen (pre-1.0).** As of 0.4.0 the public surface is
-> complete and frozen for the 1.x series — additive, non-breaking changes only
-> until 2.0 (the frozen surface is recorded in `dev/ROADMAP.md`). The
-> testing-only accessors (`force_scalar`, `which_kernel`) are explicitly *not*
-> part of the stable API.
+> **Status: API-frozen (pre-1.0).** As of 0.5.0 the public API is locked for the
+> 1.x series — additive, non-breaking changes only until 2.0 (the frozen surface
+> is recorded in `dev/ROADMAP.md`). The testing-only accessors (`force_scalar`,
+> `which_kernel`, `compute_scalar`) are explicitly *not* part of the stable API.
 
 ## Table of Contents
 
@@ -31,6 +30,7 @@
 - [Testing surface (feature `testing`)](#testing-surface-feature-testing)
   - [`force_scalar`](#force_scalar)
   - [`which_kernel`](#which_kernel)
+  - [`compute_scalar`](#compute_scalar)
 - [Errors](#errors)
 - [Feature flags](#feature-flags)
 - [Trait implementation matrix](#trait-implementation-matrix)
@@ -406,6 +406,27 @@ assert!(matches!(kernel, "scalar" | "avx2" | "neon"));
 # }
 ```
 
+### `compute_scalar`
+
+```rust
+#[cfg(any(test, feature = "testing"))]
+pub fn compute_scalar(metric: DistanceMetric, a: &[f32], b: &[f32]) -> Result<f32>;
+```
+
+Compute `metric` on the **scalar reference path**, bypassing runtime dispatch — a per-call scalar oracle. Unlike [`force_scalar`](#force_scalar), which is a sticky, process-wide override, this computes scalar for a single call without touching global state, so a caller can obtain SIMD and scalar results for the *same* input in the same process. The equivalence fuzz target uses it to assert `compute(metric, a, b) ≈ compute_scalar(metric, a, b)` per input. Same input contract and errors as [`compute`](#compute-runtime-dispatch).
+
+```rust
+# #[cfg(feature = "testing")]
+# {
+use iqdb_distance::compute_scalar;
+use iqdb_types::DistanceMetric;
+
+let d = compute_scalar(DistanceMetric::Euclidean, &[0.0, 0.0], &[3.0, 4.0])
+    .expect("valid pair");
+assert!((d - 5.0).abs() < 1e-6);
+# }
+```
+
 ---
 
 ## Errors
@@ -441,7 +462,7 @@ assert_eq!(
 
 | Feature | Default | Effect |
 |---|---|---|
-| `testing` | off | Exposes [`force_scalar`](#force_scalar) and [`which_kernel`](#which_kernel), used by the differential SIMD test and the criterion benches to exercise the scalar path on a SIMD-capable host. A production build cannot reach them. |
+| `testing` | off | Exposes [`force_scalar`](#force_scalar), [`which_kernel`](#which_kernel), and [`compute_scalar`](#compute_scalar), used by the differential SIMD test, the equivalence fuzz target, and the criterion benches to exercise the scalar path on a SIMD-capable host. A production build cannot reach them. |
 
 The crate has no optional runtime dependencies. Its one dependency, `iqdb-types`, is always pulled.
 

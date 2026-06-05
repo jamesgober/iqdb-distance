@@ -64,3 +64,23 @@ jobs:
         run: cargo audit
       - name: Deny
         run: cargo deny check
+
+  fuzz:
+    name: Fuzz (build + smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - name: Build fuzz targets
+        run: cargo +nightly fuzz build
+      - name: Smoke-run equivalence (SIMD vs scalar)
+        run: cargo +nightly fuzz run equivalence -- -max_total_time=30
+      - name: Smoke-run robustness (no panic)
+        run: cargo +nightly fuzz run robustness -- -max_total_time=20

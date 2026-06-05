@@ -65,6 +65,8 @@ mod simd;
 mod traits;
 mod validate;
 
+#[cfg(any(test, feature = "testing"))]
+pub use crate::dispatch::compute_scalar;
 pub use crate::dispatch::{compute, compute_batch};
 pub use crate::features::{CpuFeatures, detect_features, forced_scalar};
 #[cfg(any(test, feature = "testing"))]

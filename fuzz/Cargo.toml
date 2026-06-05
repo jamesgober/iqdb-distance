@@ -1,0 +1,40 @@
+[package]
+name        = "iqdb-distance-fuzz"
+version     = "0.0.0"
+edition     = "2024"
+publish     = false
+description = "Cargo-fuzz targets for iqdb-distance: SIMD-vs-scalar equivalence and no-panic robustness. Requires a nightly toolchain via cargo-fuzz (see README.md)."
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary     = { version = "1", features = ["derive"] }
+
+iqdb-types    = "1.0.0"
+# The `testing` feature exposes `compute_scalar`, the per-call scalar oracle the
+# equivalence target compares the dispatched (SIMD) kernel against.
+iqdb-distance = { path = "..", features = ["testing"] }
+
+# SIMD-vs-scalar numerical equivalence on bounded, finite inputs.
+[[bin]]
+name    = "equivalence"
+path    = "fuzz_targets/equivalence.rs"
+test    = false
+doc     = false
+bench   = false
+doctest = false
+
+# No-panic robustness on arbitrary (incl. hostile / non-finite) inputs.
+[[bin]]
+name    = "robustness"
+path    = "fuzz_targets/robustness.rs"
+test    = false
+doc     = false
+bench   = false
+doctest = false
+
+# Isolate the fuzz crate as its own workspace root so it never gets pulled into
+# a parent build (the cargo-fuzz convention).
+[workspace]

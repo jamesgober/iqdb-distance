@@ -21,6 +21,35 @@
 
 ---
 
+## [0.5.0] - 2026-06-05
+
+Equivalence fuzzing and **API freeze**. The SIMD-vs-scalar contract is now
+fuzzed, not just covered by a fixed corpus, and the public surface is locked for
+the 1.x series.
+
+### Added
+
+- `fuzz/` cargo-fuzz crate (nightly) with two targets: `equivalence`, which
+  asserts the dispatched SIMD kernel agrees with the scalar reference over
+  bounded finite inputs across all five metrics (the fuzzed counterpart to
+  `tests/differential.rs`), and `robustness`, which asserts `compute` never
+  panics on arbitrary, including non-finite and length-mismatched, input. Local
+  soak: 13.6M+ / 10.3M+ executions with zero findings.
+- `compute_scalar(metric, a, b)`: a testing-only accessor (gated on
+  `feature = "testing"`) that computes a metric on the scalar reference path for
+  a single call, bypassing the process-sticky `force_scalar`. It gives the
+  equivalence fuzzer a per-input scalar oracle. **Not** part of the stable
+  surface — same status as `force_scalar` / `which_kernel`.
+- CI `fuzz` job: builds both targets on nightly and smoke-runs each.
+
+### Changed
+
+- **Public API frozen for 1.x.** The stable surface recorded under the 0.4.0
+  feature freeze is now locked; only additive, non-breaking changes land before
+  2.0. `cargo audit` and `cargo deny check` are clean.
+
+---
+
 ## [0.4.0] - 2026-06-05
 
 Normalized fast path and **feature freeze**. The public surface is now complete
@@ -154,6 +183,7 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
 
-[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jamesgober/iqdb-distance/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jamesgober/iqdb-distance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jamesgober/iqdb-distance/releases/tag/v0.3.0
