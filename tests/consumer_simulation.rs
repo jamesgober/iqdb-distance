@@ -86,9 +86,15 @@ fn ids(hits: &[Hit]) -> Vec<VectorId> {
 #[test]
 fn euclidean_returns_nearest_first() {
     let mut index = SimIndex::new(2, DistanceMetric::Euclidean);
-    index.insert(1, Arc::from([0.0_f32, 0.0].as_slice())).unwrap();
-    index.insert(2, Arc::from([1.0_f32, 1.0].as_slice())).unwrap();
-    index.insert(3, Arc::from([5.0_f32, 5.0].as_slice())).unwrap();
+    index
+        .insert(1, Arc::from([0.0_f32, 0.0].as_slice()))
+        .unwrap();
+    index
+        .insert(2, Arc::from([1.0_f32, 1.0].as_slice()))
+        .unwrap();
+    index
+        .insert(3, Arc::from([5.0_f32, 5.0].as_slice()))
+        .unwrap();
 
     let hits = index.search(&[0.1, 0.1], 3).unwrap();
     assert_eq!(
@@ -105,9 +111,15 @@ fn dot_product_returns_most_similar_first() {
     // Larger inner product is "closer"; the index negates so the nearest Hit
     // has the smallest (most-negative) distance.
     let mut index = SimIndex::new(2, DistanceMetric::DotProduct);
-    index.insert(1, Arc::from([1.0_f32, 0.0].as_slice())).unwrap();
-    index.insert(2, Arc::from([10.0_f32, 0.0].as_slice())).unwrap();
-    index.insert(3, Arc::from([-5.0_f32, 0.0].as_slice())).unwrap();
+    index
+        .insert(1, Arc::from([1.0_f32, 0.0].as_slice()))
+        .unwrap();
+    index
+        .insert(2, Arc::from([10.0_f32, 0.0].as_slice()))
+        .unwrap();
+    index
+        .insert(3, Arc::from([-5.0_f32, 0.0].as_slice()))
+        .unwrap();
 
     let hits = index.search(&[1.0, 0.0], 3).unwrap();
     // Dots: id1=1, id2=10, id3=-5 → most similar is id2, then id1, then id3.
@@ -121,9 +133,15 @@ fn dot_product_returns_most_similar_first() {
 #[test]
 fn cosine_ranks_by_angle_not_magnitude() {
     let mut index = SimIndex::new(2, DistanceMetric::Cosine);
-    index.insert(1, Arc::from([1.0_f32, 0.0].as_slice())).unwrap(); // same dir as query
-    index.insert(2, Arc::from([100.0_f32, 0.0].as_slice())).unwrap(); // same dir, large mag
-    index.insert(3, Arc::from([0.0_f32, 1.0].as_slice())).unwrap(); // perpendicular
+    index
+        .insert(1, Arc::from([1.0_f32, 0.0].as_slice()))
+        .unwrap(); // same dir as query
+    index
+        .insert(2, Arc::from([100.0_f32, 0.0].as_slice()))
+        .unwrap(); // same dir, large mag
+    index
+        .insert(3, Arc::from([0.0_f32, 1.0].as_slice()))
+        .unwrap(); // perpendicular
 
     let hits = index.search(&[2.0, 0.0], 3).unwrap();
     // Cosine ignores magnitude: ids 1 and 2 tie at distance ~0, id 3 is ~1.
@@ -141,8 +159,12 @@ fn every_implemented_metric_runs_through_the_index() {
         DistanceMetric::Hamming,
     ] {
         let mut index = SimIndex::new(3, metric);
-        index.insert(1, Arc::from([1.0_f32, 0.0, 0.0].as_slice())).unwrap();
-        index.insert(2, Arc::from([0.0_f32, 1.0, 0.0].as_slice())).unwrap();
+        index
+            .insert(1, Arc::from([1.0_f32, 0.0, 0.0].as_slice()))
+            .unwrap();
+        index
+            .insert(2, Arc::from([0.0_f32, 1.0, 0.0].as_slice()))
+            .unwrap();
         let hits = index.search(&[1.0, 0.0, 0.0], 2).unwrap();
         assert_eq!(hits.len(), 2, "metric {metric:?}");
     }
@@ -167,7 +189,9 @@ fn batch_scoring_matches_per_pair_compute() {
 #[test]
 fn dimension_mismatch_propagates_from_search() {
     let mut index = SimIndex::new(3, DistanceMetric::Euclidean);
-    index.insert(1, Arc::from([1.0_f32, 0.0, 0.0].as_slice())).unwrap();
+    index
+        .insert(1, Arc::from([1.0_f32, 0.0, 0.0].as_slice()))
+        .unwrap();
     // Query of the wrong dimension surfaces the typed error from the kernel.
     let err = index.search(&[1.0, 0.0], 1).unwrap_err();
     assert!(matches!(err, IqdbError::DimensionMismatch { .. }));
@@ -176,8 +200,16 @@ fn dimension_mismatch_propagates_from_search() {
 #[test]
 fn insert_rejects_wrong_dimension() {
     let mut index = SimIndex::new(3, DistanceMetric::Cosine);
-    let err = index.insert(1, Arc::from([1.0_f32, 0.0].as_slice())).unwrap_err();
-    assert_eq!(err, IqdbError::DimensionMismatch { expected: 3, found: 2 });
+    let err = index
+        .insert(1, Arc::from([1.0_f32, 0.0].as_slice()))
+        .unwrap_err();
+    assert_eq!(
+        err,
+        IqdbError::DimensionMismatch {
+            expected: 3,
+            found: 2
+        }
+    );
 }
 
 // --- Normalized-index variant (the cosine fast path) ------------------------
@@ -205,8 +237,10 @@ fn normalized_index_matches_cosine_ranking() {
         .map(|(i, u)| (i, cosine_normalized(u, &uq).unwrap()))
         .collect();
     scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap().then(a.0.cmp(&b.0)));
-    let normalized_order: Vec<VectorId> =
-        scored.into_iter().map(|(i, _)| VectorId::U64(i as u64)).collect();
+    let normalized_order: Vec<VectorId> = scored
+        .into_iter()
+        .map(|(i, _)| VectorId::U64(i as u64))
+        .collect();
 
     assert_eq!(cosine_order, normalized_order);
 }
