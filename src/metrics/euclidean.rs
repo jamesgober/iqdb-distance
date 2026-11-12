@@ -25,7 +25,13 @@ pub struct Euclidean;
 impl Distance for Euclidean {
     fn compute(a: &[f32], b: &[f32]) -> Result<f32> {
         crate::validate::pair(a, b)?;
-        Ok(dispatch(a, b))
+        let fast = dispatch(a, b);
+        if fast.is_finite() {
+            Ok(fast)
+        } else {
+            // Overflow in the f32 accumulators; see `crate::scalar::wide`.
+            Ok(crate::scalar::wide::euclidean(a, b))
+        }
     }
 
     fn compute_batch(query: &[f32], candidates: &[&[f32]], out: &mut [f32]) -> Result<()> {

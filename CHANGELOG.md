@@ -8,13 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
-
-### Changed
+Planned as 1.0.1. No API changes.
 
 ### Fixed
 
-### Security
+- Finite inputs could produce a NaN distance. Components above roughly
+  `1e19` square past `f32::MAX`, so `Cosine` and `DotProduct` could compute
+  `inf - inf` or `inf / inf`. On x86 that NaN has its sign bit set, and an
+  index ordering by `f32::total_cmp` ranks it as the best match. When a fast
+  `Cosine`, `DotProduct`, or `Euclidean` result is not finite, that pair is
+  now recomputed in `f64`: `Cosine` stays in range, `DotProduct` returns
+  `±inf` only when the true value is beyond `f32`, and `Euclidean` is finite
+  whenever the distance itself fits. Ordinary embeddings never take this
+  path, so the hot path is unchanged.
+- The docs gave `Cosine` a range of `[0, 2]`; rounding can put a
+  near-identical pair a few ULPs below zero, and the docs now say so.
 
 ---
 
