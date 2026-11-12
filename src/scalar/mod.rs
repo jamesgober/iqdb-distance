@@ -10,3 +10,4 @@ pub(crate) mod dot;
 pub(crate) mod euclidean;
 pub(crate) mod hamming;
 pub(crate) mod manhattan;
+pub(crate) mod wide;

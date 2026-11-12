@@ -131,3 +131,46 @@ fn batch_rejects_wrong_output_length() {
         "expected InvalidConfig, got {err:?}",
     );
 }
+
+#[test]
+fn large_finite_inputs_never_produce_nan() {
+    // Orthogonal pair whose products overflow f32: inf - inf in the fast path.
+    let a = [
+        std::hint::black_box(1e20_f32),
+        std::hint::black_box(-1e20_f32),
+    ];
+    let b = [
+        std::hint::black_box(1e20_f32),
+        std::hint::black_box(1e20_f32),
+    ];
+
+    let cos = Cosine::compute(&a, &b).unwrap();
+    assert!((cos - 1.0).abs() < 1e-6, "orthogonal cosine = {cos}");
+
+    let same = Cosine::compute(&b, &b).unwrap();
+    assert!(same.abs() < 1e-6, "identical-direction cosine = {same}");
+
+    let dot = DotProduct::compute(&a, &b).unwrap();
+    assert_eq!(dot, 0.0, "orthogonal dot = {dot}");
+
+    let l2 = Euclidean::compute(&a, &b).unwrap();
+    assert!((l2 - 2e20).abs() / 2e20 < 1e-6, "euclidean = {l2}");
+
+    for metric in ALL_METRICS {
+        let mut out = [0.0_f32; 2];
+        let cands: [&[f32]; 2] = [&a, &b];
+        iqdb_distance::compute_batch(metric, &b, &cands, &mut out).unwrap();
+        assert!(
+            out.iter().all(|d| !d.is_nan()),
+            "{metric:?} batch = {out:?}"
+        );
+    }
+}
+
+#[test]
+fn dot_beyond_f32_range_is_infinite_not_nan() {
+    let a = [std::hint::black_box(3e38_f32); 4];
+    assert_eq!(DotProduct::compute(&a, &a).unwrap(), f32::INFINITY);
+    let neg = [std::hint::black_box(-3e38_f32); 4];
+    assert_eq!(DotProduct::compute(&a, &neg).unwrap(), f32::NEG_INFINITY);
+}

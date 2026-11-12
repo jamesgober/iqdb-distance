@@ -141,7 +141,7 @@ library never panics on hostile input.
 
 ## Status
 
-<code>v1.0.0</code> &mdash; **stable.** All five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels, each property-tested, differentially verified, **and fuzzed** against the scalar twin; the `cosine_normalized` fast path for pre-normalized embeddings; and allocation-free batch evaluation. The public API is committed under SemVer for the 1.x series (no breaking changes until 2.0; the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>), benchmarked (6.8&ndash;10.3&times; SIMD speedups on AVX2 at 768-dim), and verified on Windows + Linux across stable and the 1.87 MSRV. The full surface is documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
+<code>v1.0.1</code> &mdash; **stable.** All five metrics ship with a scalar reference path plus runtime-dispatched AVX2 and NEON kernels, each property-tested, differentially verified, **and fuzzed** against the scalar twin; the `cosine_normalized` fast path for pre-normalized embeddings; and allocation-free batch evaluation. The public API is committed under SemVer for the 1.x series (no breaking changes until 2.0; the frozen surface is recorded in the <a href="./dev/ROADMAP.md"><code>ROADMAP</code></a>), benchmarked (6.8&ndash;10.3&times; SIMD speedups on AVX2 at 768-dim), and verified on Windows + Linux across stable and the 1.87 MSRV. The full surface is documented in <a href="./docs/API.md"><code>docs/API.md</code></a>.
 
 <hr>
 <br>

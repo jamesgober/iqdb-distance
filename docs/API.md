@@ -234,13 +234,15 @@ All five take two equal-length `f32` slices. Smaller is nearer for the true dist
 
 | Metric | Formula | Range | Notes |
 |---|---|---|---|
-| `Cosine` | `1 − (a·b) / (‖a‖·‖b‖)` | `[0, 2]` | Magnitude-independent; suits normalized embeddings. A zero-magnitude vector is defined to have distance `1.0` (no similarity). |
+| `Cosine` | `1 − (a·b) / (‖a‖·‖b‖)` | `[0, 2]`, up to rounding | Magnitude-independent; suits normalized embeddings. A zero-magnitude vector is defined to have distance `1.0` (no similarity). Rounding can put a near-identical pair a few ULPs below `0`. |
 | `DotProduct` | `a·b` | unbounded, signed | A **similarity**, not a distance — carries the sign of the inner product. Use when magnitude carries signal. |
 | `Euclidean` | `√(Σ (aᵢ − bᵢ)²)` | `[0, ∞)` | Straight-line (L2) distance. Exactly `0` when `a == b` componentwise. |
 | `Manhattan` | `Σ │aᵢ − bᵢ│` | `[0, ∞)` | Sum of absolute differences (L1). Exactly `0` when `a == b`. |
 | `Hamming` | `#{ i : aᵢ.to_bits() ≠ bᵢ.to_bits() }` | `[0, len]` | Count of bit-distinct positions, returned as `f32`. Suits binary codes encoded as `0.0`/`1.0`. `−0.0` and `+0.0` differ. |
 
 **Cosine numerical note.** The denominator is computed as `‖a‖·‖b‖` via two independent square roots (`na.sqrt() * nb.sqrt()`), not `(na·nb).sqrt()`. The former is numerically robust: the squared-norm product `na·nb` can underflow to `0` for low-magnitude inputs even when each norm is individually finite. The guard `denom <= f32::MIN_POSITIVE` catches both genuine zero-norm vectors and residual subnormal underflow, returning `1.0`. Inputs whose per-component squared norm itself underflows below `f32::MIN_POSITIVE` (magnitudes around `1e-22` at small dims) hit a documented floor and also report `1.0`. The scalar, AVX2, and NEON kernels use the identical strategy, so they agree.
+
+**Overflow.** The kernels accumulate in `f32`. Finite components above roughly `1e19` square past `f32::MAX`, which used to turn `Cosine` and `DotProduct` into NaN and `Euclidean` into `inf`. When a fast result is not finite, `Cosine`, `DotProduct`, and `Euclidean` recompute that pair in `f64`, so finite inputs never produce NaN: `Cosine` stays in range, `DotProduct` comes back as `±inf` only when the true value is beyond `f32`, and `Euclidean` is finite whenever the distance itself fits. Ordinary embeddings never take this path.
 
 ```rust
 use iqdb_distance::{Cosine, DotProduct, Euclidean, Hamming, Manhattan, Distance};
